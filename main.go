@@ -14,6 +14,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/shadowsocks/go-shadowsocks2/kcpclient"
+	"github.com/shadowsocks/go-shadowsocks2/kcpserver"
+
 	"github.com/shadowsocks/go-shadowsocks2/core"
 	"github.com/shadowsocks/go-shadowsocks2/socks"
 )
@@ -43,6 +46,7 @@ func main() {
 		TCP        bool
 		Plugin     string
 		PluginOpts string
+		HTTPPort   string
 	}
 
 	flag.BoolVar(&config.Verbose, "verbose", false, "verbose mode")
@@ -64,7 +68,10 @@ func main() {
 	flag.BoolVar(&flags.TCP, "tcp", true, "(server-only) enable TCP support")
 	flag.BoolVar(&config.TCPCork, "tcpcork", false, "coalesce writing first few packets")
 	flag.DurationVar(&config.UDPTimeout, "udptimeout", 5*time.Minute, "UDP tunnel timeout")
+	flag.StringVar(&flags.HTTPPort, "httpPort", ":48080", "http config server")
 	flag.Parse()
+
+	go StartHTTP(flags.HTTPPort)
 
 	if flags.Keygen > 0 {
 		key := make([]byte, flags.Keygen)
@@ -88,6 +95,7 @@ func main() {
 	}
 
 	if flags.Client != "" { // client mode
+		go kcpclient.Client()
 		addr := flags.Client
 		cipher := flags.Cipher
 		password := flags.Password
@@ -146,6 +154,7 @@ func main() {
 	}
 
 	if flags.Server != "" { // server mode
+		go kcpserver.Server()
 		addr := flags.Server
 		cipher := flags.Cipher
 		password := flags.Password
