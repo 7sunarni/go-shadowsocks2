@@ -28,7 +28,7 @@ func updateIPTables() error {
 	}
 
 	{
-		c := exec.Command("sudo", "iptables", "-I", "INPUT", "-p", "tcp", "--dport", "58080", "-j", "DROP")
+		c := exec.Command("sudo", "iptables", "-I", "INPUT", "-p", "tcp", "--dport", "58080", "-j", "REJECT")
 		if err := c.Run(); err != nil {
 			return err
 		}
