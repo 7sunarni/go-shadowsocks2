@@ -102,6 +102,11 @@ func StartHTTP(p string) {
 				rw.Write([]byte(err.Error()))
 				return
 			}
+			// not update iptables
+			if allowedIPs[item.Name] == remoteIP {
+				rw.Write([]byte(remoteIP))
+				return
+			}
 			allowedIPs[item.Name] = remoteIP
 			updateIPTables()
 			rw.WriteHeader(http.StatusOK)
