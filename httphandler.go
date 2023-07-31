@@ -35,7 +35,7 @@ func updateIPTables() error {
 	}
 
 	for name, ip := range allowedIPs {
-		c := exec.Command("sudo", "iptables", "-I", "INPUT", "--source", ip, "-p", "tcp", "--dport", "58080", "-j", "ACCEPT")
+		c := exec.Command("sudo", "iptables", "-I", "INPUT", "--source", ip, "-p", "tcp", "--dport", "58080", "-j", "ACCEPT", "-m", "comment", "--comment", name)
 		if err = c.Run(); err != nil {
 			return err
 		}
