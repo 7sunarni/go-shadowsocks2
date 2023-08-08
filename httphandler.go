@@ -2,41 +2,42 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
 	"os"
 	"os/exec"
+	"strings"
 	"sync"
 )
 
 var (
 	lock       = sync.Mutex{}
 	allowedIPs = map[string]string{}
+	port       = "58080"
 )
 
+func runIptables(command string) error {
+	splitedCommands := strings.Split(command, " ")
+	c := exec.Command("sudo", splitedCommands...)
+	c.Stdout = os.Stdout
+	c.Stderr = os.Stderr
+	return c.Run()
+}
+
 func updateIPTables() error {
-	var err error
-	{
-		c := exec.Command("sudo", "iptables", "-F")
-		c.Stdout = os.Stdout
-		c.Stderr = os.Stderr
-		if err := c.Run(); err != nil {
-			return err
-		}
+	if err := runIptables("iptabels -F"); err != nil {
+		return err
 	}
 
-	{
-		c := exec.Command("sudo", "iptables", "-I", "INPUT", "-p", "tcp", "--dport", "58080", "-j", "REJECT")
-		if err := c.Run(); err != nil {
-			return err
-		}
+	if err := runIptables(fmt.Sprintf("iptables -I INPUT -p tcp --dport %s -j REJECT", port)); err != nil {
+		return err
 	}
 
 	for name, ip := range allowedIPs {
-		c := exec.Command("sudo", "iptables", "-I", "INPUT", "--source", ip, "-p", "tcp", "--dport", "58080", "-j", "ACCEPT", "-m", "comment", "--comment", name)
-		if err = c.Run(); err != nil {
+		if err := runIptables(fmt.Sprintf("iptables -I INPUT --source %s -p tcp --dport %s -j ACCEPT -m comment --comment %s", ip, port, name)); err != nil {
 			return err
 		}
 		log.Printf("add allowed %s ip %s", name, ip)
