@@ -31,39 +31,44 @@ func updateIPTables() error {
 	if err := runIptables("iptabels -F"); err != nil {
 		return err
 	}
+
+	// https://serverfault.com/questions/638201/how-to-determine-what-traffic-is-being-dropped-blocked-base-on-iptables-log
+	runIptables("iptables -N GOSS_DROP")
+	runIptables(`iptables -A GOSS_DROP -j LOG --log-prefix "Source host denied "`)
+	runIptables("iptables -A GOSS_DROP -j REJECT --reject-with tcp-reset")
 	/*
-	iptable reject with tcp-reset option
-	use tcpdump observe tcp connection behavior: 
- 
-        1. port is not listening
-	client [S]
-        client [S]
-	server [R.]
+			iptable reject with tcp-reset option
+			use tcpdump observe tcp connection behavior:
 
-        2. iptables -J DROP
-	client [S]
-        client [S]
-	client [S]
-        client [S]
-	server [R.]
+		        1. port is not listening
+			client [S]
+		        client [S]
+			server [R.]
 
-        3. iptables -J REJECT --reject-with icmp-port-unreachable
-	client [S]
-        client [S]
-	client [S]
-        client [S]
-	server [R.]
+		        2. iptables -J DROP
+			client [S]
+		        client [S]
+			client [S]
+		        client [S]
+			server [R.]
 
-        4. iptables -J REJECT --reject-with tcp-reset
- 	client [S]
-        client [S]
-	server [R.]
+		        3. iptables -J REJECT --reject-with icmp-port-unreachable
+			client [S]
+		        client [S]
+			client [S]
+		        client [S]
+			server [R.]
 
-        reject-with tcp-reset behave more like port is not listening.
-	TODO: check tcp reset cause reason
- 
-        */
-	if err := runIptables(fmt.Sprintf("iptables -I INPUT -p tcp --dport %s -j REJECT --reject-with tcp-reset", port)); err != nil {
+		        4. iptables -J REJECT --reject-with tcp-reset
+		 	client [S]
+		        client [S]
+			server [R.]
+
+		        reject-with tcp-reset behave more like port is not listening.
+			TODO: check tcp reset cause reason
+
+	*/
+	if err := runIptables(fmt.Sprintf("iptables -I INPUT -p tcp --dport %s -j GOSS_DROP", port)); err != nil {
 		return err
 	}
 
