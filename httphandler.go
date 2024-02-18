@@ -16,7 +16,7 @@ import (
 var (
 	lock       = sync.Mutex{}
 	allowedIPs = map[string]string{}
-	port       = "58080"
+	ports      = []string{"58080", "9993"}
 )
 
 func runIptables(command string) error {
@@ -27,15 +27,31 @@ func runIptables(command string) error {
 	return c.Run()
 }
 
+func iptablesWhiteList() error {
+	for _, port := range ports {
+		if err := runIptables(fmt.Sprintf("iptables -I INPUT -p tcp --dport %s -j GOSS_DROP", port)); err != nil {
+			return err
+		}
+
+		for name, ip := range allowedIPs {
+			if err := runIptables(fmt.Sprintf("iptables -I INPUT --source %s -p tcp --dport %s -j ACCEPT -m comment --comment %s", ip, port, name)); err != nil {
+				return err
+			}
+			log.Printf("add allowed %s ip %s", name, ip)
+		}
+	}
+	return nil
+}
+
 func updateIPTables() error {
-	if err := runIptables("iptabels -F"); err != nil {
+	if err := runIptables("iptables -F"); err != nil {
 		return err
 	}
 
 	// https://serverfault.com/questions/638201/how-to-determine-what-traffic-is-being-dropped-blocked-base-on-iptables-log
 	runIptables("iptables -N GOSS_DROP")
-	runIptables(`iptables -A GOSS_DROP -j LOG --log-prefix "Source host denied "`)
-	runIptables("iptables -A GOSS_DROP -j REJECT --reject-with tcp-reset")
+	runIptables(`iptables -A GOSS_DROP -j LOG --log-prefix "Source_host_denied"`)
+	runIptables("iptables -A GOSS_DROP -j REJECT")
 	/*
 			iptable reject with tcp-reset option
 			use tcpdump observe tcp connection behavior:
@@ -68,18 +84,7 @@ func updateIPTables() error {
 			TODO: check tcp reset cause reason
 
 	*/
-	if err := runIptables(fmt.Sprintf("iptables -I INPUT -p tcp --dport %s -j GOSS_DROP", port)); err != nil {
-		return err
-	}
-
-	for name, ip := range allowedIPs {
-		if err := runIptables(fmt.Sprintf("iptables -I INPUT --source %s -p tcp --dport %s -j ACCEPT -m comment --comment %s", ip, port, name)); err != nil {
-			return err
-		}
-		log.Printf("add allowed %s ip %s", name, ip)
-	}
-
-	return nil
+	return iptablesWhiteList()
 }
 
 func Get(rw http.ResponseWriter, r *http.Request) {
